@@ -1,26 +1,28 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerMenuItemTools(server: McpServer, client: OrdioClient) {
   server.tool(
     'list_menu_items',
     'List all menu items for the organization.',
     {},
-    async () => {
+    async () => withErrorHandling(async () => {
       const data = await client.get('menu-items');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatList(data, { label: 'menu items' });
+    }),
   );
 
   server.tool(
     'get_menu_item',
     'Get a single menu item by ID.',
     { id: z.string().describe('Menu item ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`menu-items/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -38,10 +40,10 @@ export function registerMenuItemTools(server: McpServer, client: OrdioClient) {
       imageUrl: z.string().optional(),
       tags: z.array(z.string()).optional(),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('menu-items', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -58,19 +60,19 @@ export function registerMenuItemTools(server: McpServer, client: OrdioClient) {
       imageUrl: z.string().optional(),
       tags: z.array(z.string()).optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`menu-items/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_menu_item',
     'Delete a menu item by ID.',
     { id: z.string().describe('Menu item ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`menu-items/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

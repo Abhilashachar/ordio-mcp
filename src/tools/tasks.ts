@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerTaskTools(server: McpServer, client: OrdioClient) {
   server.tool(
@@ -17,20 +19,20 @@ export function registerTaskTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('tasks', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('tasks', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'tasks' });
+    }),
   );
 
   server.tool(
     'get_task',
     'Get a single task by ID.',
     { id: z.string().describe('Task ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`tasks/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -50,10 +52,10 @@ export function registerTaskTools(server: McpServer, client: OrdioClient) {
       tags: z.array(z.string()).optional(),
       isRecurring: z.boolean().optional(),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('tasks', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -73,19 +75,19 @@ export function registerTaskTools(server: McpServer, client: OrdioClient) {
       completionNotes: z.string().optional(),
       tags: z.array(z.string()).optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`tasks/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_task',
     'Delete a task by ID.',
     { id: z.string().describe('Task ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`tasks/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

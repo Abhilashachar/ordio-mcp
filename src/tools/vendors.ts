@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerVendorTools(server: McpServer, client: OrdioClient) {
   server.tool(
@@ -10,20 +12,20 @@ export function registerVendorTools(server: McpServer, client: OrdioClient) {
       status: z.string().optional().describe('Filter by status, e.g. "active"'),
       search: z.string().optional().describe('Free-text search across vendor names'),
     },
-    async (args) => {
-      const data = await client.get('vendors', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('vendors', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'vendors' });
+    }),
   );
 
   server.tool(
     'get_vendor',
     'Get a single vendor by ID.',
     { id: z.string().describe('Vendor ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`vendors/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -47,10 +49,10 @@ export function registerVendorTools(server: McpServer, client: OrdioClient) {
         country: z.string(),
       }).optional(),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('vendors', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -68,19 +70,19 @@ export function registerVendorTools(server: McpServer, client: OrdioClient) {
       paymentTerms: z.string().optional(),
       taxId: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`vendors/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_vendor',
     'Delete a vendor by ID.',
     { id: z.string().describe('Vendor ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`vendors/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

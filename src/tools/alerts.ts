@@ -1,56 +1,58 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerAlertTools(server: McpServer, client: OrdioClient) {
   server.tool(
     'list_alerts',
     'List all active alerts for the organization (low stock, overdue tasks, etc.).',
     {},
-    async () => {
+    async () => withErrorHandling(async () => {
       const data = await client.get('alerts');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatList(data, { label: 'alerts' });
+    }),
   );
 
   server.tool(
     'get_alert',
     'Get a single alert by ID.',
     { id: z.string().describe('Alert ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`alerts/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
     'mark_alert_read',
     'Mark an alert as read.',
     { id: z.string().describe('Alert ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.post(`alerts/${id}/read`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'dismiss_alert',
     'Dismiss an alert so it no longer appears.',
     { id: z.string().describe('Alert ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.post(`alerts/${id}/dismiss`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_alert',
     'Permanently delete an alert.',
     { id: z.string().describe('Alert ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`alerts/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 
   // ── Alert Configurations ─────────────────────────────────────
@@ -59,10 +61,10 @@ export function registerAlertTools(server: McpServer, client: OrdioClient) {
     'list_alert_configurations',
     'List all alert rule configurations (e.g. low stock thresholds).',
     {},
-    async () => {
+    async () => withErrorHandling(async () => {
       const data = await client.get('alerts/configurations');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatList(data, { label: 'alert configurations' });
+    }),
   );
 
   server.tool(
@@ -77,10 +79,10 @@ export function registerAlertTools(server: McpServer, client: OrdioClient) {
       actions: z.array(z.record(z.unknown())).optional().describe('Actions to take when triggered'),
       cooldownMinutes: z.string().optional().describe('Minimum minutes between repeat alerts'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('alerts/configurations', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -95,19 +97,19 @@ export function registerAlertTools(server: McpServer, client: OrdioClient) {
       actions: z.array(z.record(z.unknown())).optional(),
       cooldownMinutes: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`alerts/configurations/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_alert_configuration',
     'Delete an alert rule configuration.',
     { id: z.string().describe('Alert configuration ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`alerts/configurations/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

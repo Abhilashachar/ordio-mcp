@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerSalesTools(server: McpServer, client: OrdioClient) {
   // ── Sales Data ─────────────────────────────────────────────
@@ -14,10 +16,10 @@ export function registerSalesTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('sales-data', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('sales-data', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'sales records' });
+    }),
   );
 
   // ── Sales Daily Summary ────────────────────────────────────
@@ -31,10 +33,10 @@ export function registerSalesTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('sales-daily-summary', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('sales-daily-summary', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'daily sales summaries' });
+    }),
   );
 
   // ── Labor Daily Summary ────────────────────────────────────
@@ -48,10 +50,10 @@ export function registerSalesTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('labor-daily-summary', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('labor-daily-summary', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'daily labor summaries' });
+    }),
   );
 
   // ── Timesheets ─────────────────────────────────────────────
@@ -67,20 +69,20 @@ export function registerSalesTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('timesheets', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('timesheets', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'timesheets' });
+    }),
   );
 
   server.tool(
     'get_timesheet',
     'Get a single timesheet entry by ID.',
     { id: z.string().describe('Timesheet ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`timesheets/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -94,10 +96,10 @@ export function registerSalesTools(server: McpServer, client: OrdioClient) {
       notes: z.string().optional(),
       status: z.string().optional().describe('"pending" or "approved"'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('timesheets', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -111,19 +113,19 @@ export function registerSalesTools(server: McpServer, client: OrdioClient) {
       notes: z.string().optional(),
       status: z.string().optional().describe('"pending" or "approved"'),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`timesheets/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_timesheet',
     'Delete a timesheet entry.',
     { id: z.string().describe('Timesheet ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`timesheets/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

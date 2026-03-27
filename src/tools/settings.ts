@@ -1,26 +1,28 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatItem, formatMutation } from '../utils/format.js';
 
 export function registerSettingsTools(server: McpServer, client: OrdioClient) {
   server.tool(
     'get_settings',
     'Get all org settings as a key-value map.',
     {},
-    async () => {
+    async () => withErrorHandling(async () => {
       const data = await client.get('settings');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
     'get_setting',
     'Get a single org setting by key.',
     { key: z.string().describe('Setting key, e.g. "timezone", "currency"') },
-    async ({ key }) => {
+    async ({ key }) => withErrorHandling(async () => {
       const data = await client.get(`settings/${key}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -30,19 +32,19 @@ export function registerSettingsTools(server: McpServer, client: OrdioClient) {
       key: z.string().min(1).describe('Setting key'),
       value: z.string().describe('Setting value (always stored as string)'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('settings', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_setting',
     'Delete an org setting by key.',
     { key: z.string().describe('Setting key to delete') },
-    async ({ key }) => {
+    async ({ key }) => withErrorHandling(async () => {
       const data = await client.delete(`settings/${key}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

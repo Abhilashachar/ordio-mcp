@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerTeamTools(server: McpServer, client: OrdioClient) {
   // ── Team Members ─────────────────────────────────────────────
@@ -11,20 +13,20 @@ export function registerTeamTools(server: McpServer, client: OrdioClient) {
     {
       status: z.string().optional().describe('Filter by status: "active" or "inactive"'),
     },
-    async (args) => {
-      const data = await client.get('team-members', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('team-members', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'team members' });
+    }),
   );
 
   server.tool(
     'get_team_member',
     'Get a single team member by ID.',
     { id: z.string().describe('Team member ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`team-members/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -42,10 +44,10 @@ export function registerTeamTools(server: McpServer, client: OrdioClient) {
       status: z.string().optional().describe('"active" or "inactive"'),
       imageUrl: z.string().optional(),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('team-members', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -61,20 +63,20 @@ export function registerTeamTools(server: McpServer, client: OrdioClient) {
       departmentId: z.string().optional(),
       status: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`team-members/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_team_member',
     'Remove a team member from the organization.',
     { id: z.string().describe('Team member ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`team-members/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 
   // ── Departments ───────────────────────────────────────────────
@@ -83,10 +85,10 @@ export function registerTeamTools(server: McpServer, client: OrdioClient) {
     'list_departments',
     'List all departments in the organization.',
     {},
-    async () => {
+    async () => withErrorHandling(async () => {
       const data = await client.get('departments');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatList(data, { label: 'departments' });
+    }),
   );
 
   server.tool(
@@ -98,10 +100,10 @@ export function registerTeamTools(server: McpServer, client: OrdioClient) {
       color: z.string().optional().describe('Hex color code'),
       managerId: z.string().optional().describe('Team member ID of the department manager'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('departments', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -114,19 +116,19 @@ export function registerTeamTools(server: McpServer, client: OrdioClient) {
       color: z.string().optional(),
       managerId: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`departments/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_department',
     'Delete a department.',
     { id: z.string().describe('Department ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`departments/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

@@ -10,6 +10,10 @@ export interface Config {
   apiKey: string;
   /** Organization ID scoped to all org-level tool calls */
   orgId: string;
+  /** Transport mode: stdio (default) or sse for HTTP clients */
+  transport: 'stdio' | 'sse';
+  /** Port for the SSE HTTP server (only used when transport is 'sse') */
+  port: number;
 }
 
 function requireEnv(name: string): string {
@@ -25,5 +29,7 @@ export function loadConfig(): Config {
     apiBaseUrl: process.env.ORDIO_API_BASE_URL ?? 'https://api.getordio.com',
     apiKey: requireEnv('ORDIO_API_KEY'),
     orgId: requireEnv('ORDIO_ORG_ID'),
+    transport: (process.env.ORDIO_MCP_TRANSPORT ?? 'stdio') as 'stdio' | 'sse',
+    port: Number(process.env.ORDIO_MCP_PORT) || 3100,
   };
 }

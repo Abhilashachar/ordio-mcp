@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerInvoiceTools(server: McpServer, client: OrdioClient) {
   server.tool(
@@ -17,20 +19,20 @@ export function registerInvoiceTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('invoices', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('invoices', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'invoices' });
+    }),
   );
 
   server.tool(
     'get_invoice',
     'Get a single invoice by ID.',
     { id: z.string().describe('Invoice ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`invoices/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -58,10 +60,10 @@ export function registerInvoiceTools(server: McpServer, client: OrdioClient) {
         inventoryItemId: z.string().optional().nullable(),
       })).optional(),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('invoices', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -76,19 +78,19 @@ export function registerInvoiceTools(server: McpServer, client: OrdioClient) {
       total: z.number().optional(),
       dueDate: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`invoices/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_invoice',
     'Delete an invoice by ID.',
     { id: z.string().describe('Invoice ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`invoices/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

@@ -4,6 +4,7 @@
  */
 
 import type { Config } from './config.js';
+import { buildApiError } from './utils/errors.js';
 
 export class OrdioClient {
   private readonly baseUrl: string;
@@ -81,9 +82,7 @@ export class OrdioClient {
     }
 
     if (!res.ok) {
-      const err = json as { message?: string; error?: string };
-      const msg = err.message ?? err.error ?? `HTTP ${res.status}`;
-      throw new Error(`ordio API error ${res.status}: ${msg}`);
+      throw buildApiError(res.status, json);
     }
 
     const envelope = json as { data?: T; items?: T; success?: boolean };

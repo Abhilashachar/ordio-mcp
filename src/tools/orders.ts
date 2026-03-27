@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerOrderTools(server: McpServer, client: OrdioClient) {
   server.tool(
@@ -15,20 +17,20 @@ export function registerOrderTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('orders', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('orders', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'orders' });
+    }),
   );
 
   server.tool(
     'get_order',
     'Get a single purchase order by ID.',
     { id: z.string().describe('Order ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`orders/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -56,10 +58,10 @@ export function registerOrderTools(server: McpServer, client: OrdioClient) {
       notes: z.string().optional(),
       deliveryDate: z.string().optional().describe('ISO datetime for expected delivery'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('orders', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -72,19 +74,19 @@ export function registerOrderTools(server: McpServer, client: OrdioClient) {
       deliveryDate: z.string().optional(),
       totalEstimatedCost: z.number().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`orders/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_order',
     'Delete a purchase order by ID.',
     { id: z.string().describe('Order ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`orders/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

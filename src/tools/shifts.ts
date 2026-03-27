@@ -1,26 +1,28 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerShiftTools(server: McpServer, client: OrdioClient) {
   server.tool(
     'list_shifts',
     'List all scheduled shifts for the organization.',
     {},
-    async () => {
+    async () => withErrorHandling(async () => {
       const data = await client.get('shifts');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatList(data, { label: 'shifts' });
+    }),
   );
 
   server.tool(
     'get_shift',
     'Get a single shift by ID.',
     { id: z.string().describe('Shift ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`shifts/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -40,10 +42,10 @@ export function registerShiftTools(server: McpServer, client: OrdioClient) {
       breakDuration: z.string().optional().describe('Break duration in minutes as string'),
       color: z.string().optional().describe('Hex color code'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('shifts', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -60,19 +62,19 @@ export function registerShiftTools(server: McpServer, client: OrdioClient) {
       breakDuration: z.string().optional(),
       color: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`shifts/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_shift',
     'Delete a shift by ID.',
     { id: z.string().describe('Shift ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`shifts/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

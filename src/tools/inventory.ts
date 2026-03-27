@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerInventoryTools(server: McpServer, client: OrdioClient) {
   server.tool(
@@ -16,20 +18,20 @@ export function registerInventoryTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional().describe('Max items to return (default 100)'),
       offset: z.number().min(0).optional().describe('Pagination offset'),
     },
-    async (args) => {
-      const data = await client.get('inventory', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('inventory', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'inventory items' });
+    }),
   );
 
   server.tool(
     'get_inventory_item',
     'Get a single inventory item by ID.',
     { id: z.string().describe('Inventory item ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`inventory/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -54,10 +56,10 @@ export function registerInventoryTools(server: McpServer, client: OrdioClient) {
       requireDailyCount: z.boolean().optional().describe('Whether this item requires a daily count'),
       expirationDate: z.string().optional().describe('ISO datetime string for expiration date'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('inventory', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -83,19 +85,34 @@ export function registerInventoryTools(server: McpServer, client: OrdioClient) {
       requireDailyCount: z.boolean().optional(),
       expirationDate: z.string().optional().describe('ISO datetime string'),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`inventory/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_inventory_item',
     'Delete an inventory item by ID.',
     { id: z.string().describe('Inventory item ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`inventory/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+      return formatMutation(data, 'Deleted');
+    }),
+  );
+
+  server.tool(
+    'batch_update_inventory',
+    'Batch update multiple inventory items in a single request. Max 200 items per batch.',
+    {
+      updates: z.array(z.object({
+        id: z.string(),
+        data: z.record(z.unknown()),
+      })).min(1).max(200).describe('Array of {id, data} pairs to update'),
     },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.patch('inventory/batch', { updates: args.updates });
+      return formatMutation(data, 'Updated');
+    }),
   );
 }

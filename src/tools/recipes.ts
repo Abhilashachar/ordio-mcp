@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerRecipeTools(server: McpServer, client: OrdioClient) {
   server.tool(
@@ -15,20 +17,20 @@ export function registerRecipeTools(server: McpServer, client: OrdioClient) {
       limit: z.number().min(1).max(1000).optional(),
       offset: z.number().min(0).optional(),
     },
-    async (args) => {
-      const data = await client.get('recipes', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('recipes', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'recipes' });
+    }),
   );
 
   server.tool(
     'get_recipe',
     'Get a single recipe by ID.',
     { id: z.string().describe('Recipe ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`recipes/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -53,10 +55,10 @@ export function registerRecipeTools(server: McpServer, client: OrdioClient) {
       status: z.string().optional(),
       recipeType: z.string().optional().describe('Recipe category type'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('recipes', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -82,19 +84,19 @@ export function registerRecipeTools(server: McpServer, client: OrdioClient) {
       status: z.string().optional(),
       recipeType: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`recipes/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_recipe',
     'Delete a recipe by ID.',
     { id: z.string().describe('Recipe ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`recipes/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

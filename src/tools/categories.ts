@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerCategoryTools(server: McpServer, client: OrdioClient) {
   server.tool(
@@ -10,20 +12,20 @@ export function registerCategoryTools(server: McpServer, client: OrdioClient) {
       status: z.string().optional().describe('Filter by status, e.g. "active"'),
       search: z.string().optional().describe('Free-text search'),
     },
-    async (args) => {
-      const data = await client.get('categories', args as Record<string, string>);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+    async (args) => withErrorHandling(async () => {
+      const data = await client.get('categories', args as Record<string, string | number | boolean | undefined>);
+      return formatList(data, { label: 'categories' });
+    }),
   );
 
   server.tool(
     'get_category',
     'Get a single category by ID.',
     { id: z.string().describe('Category ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`categories/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -35,10 +37,10 @@ export function registerCategoryTools(server: McpServer, client: OrdioClient) {
       color: z.string().optional().describe('Hex color code, e.g. "#FF5733"'),
       status: z.string().optional().describe('"active" or "inactive"'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('categories', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -51,19 +53,19 @@ export function registerCategoryTools(server: McpServer, client: OrdioClient) {
       color: z.string().optional(),
       status: z.string().optional(),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`categories/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_category',
     'Delete a category by ID.',
     { id: z.string().describe('Category ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`categories/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }

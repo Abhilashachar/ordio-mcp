@@ -1,26 +1,28 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { OrdioClient } from '../client.js';
+import { withErrorHandling } from '../utils/errors.js';
+import { formatList, formatItem, formatMutation } from '../utils/format.js';
 
 export function registerCountSessionTools(server: McpServer, client: OrdioClient) {
   server.tool(
     'list_count_sessions',
     'List inventory count sessions for the organization.',
     {},
-    async () => {
+    async () => withErrorHandling(async () => {
       const data = await client.get('count-sessions');
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatList(data, { label: 'count sessions' });
+    }),
   );
 
   server.tool(
     'get_count_session',
     'Get a single inventory count session by ID.',
     { id: z.string().describe('Count session ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.get(`count-sessions/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatItem(data);
+    }),
   );
 
   server.tool(
@@ -32,10 +34,10 @@ export function registerCountSessionTools(server: McpServer, client: OrdioClient
       notes: z.string().optional(),
       scheduledDate: z.string().optional().describe('ISO datetime for scheduled count'),
     },
-    async (args) => {
+    async (args) => withErrorHandling(async () => {
       const data = await client.post('count-sessions', args);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Created');
+    }),
   );
 
   server.tool(
@@ -47,19 +49,19 @@ export function registerCountSessionTools(server: McpServer, client: OrdioClient
       notes: z.string().optional(),
       completedAt: z.string().optional().describe('ISO datetime when count was completed'),
     },
-    async ({ id, ...body }) => {
+    async ({ id, ...body }) => withErrorHandling(async () => {
       const data = await client.patch(`count-sessions/${id}`, body);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Updated');
+    }),
   );
 
   server.tool(
     'delete_count_session',
     'Delete an inventory count session.',
     { id: z.string().describe('Count session ID') },
-    async ({ id }) => {
+    async ({ id }) => withErrorHandling(async () => {
       const data = await client.delete(`count-sessions/${id}`);
-      return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-    },
+      return formatMutation(data, 'Deleted');
+    }),
   );
 }
