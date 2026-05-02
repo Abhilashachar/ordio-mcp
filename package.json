@@ -1,6 +1,6 @@
 {
   "name": "ordio-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server that wraps the ordio API — lets AI agents call ordio endpoints as tools",
   "type": "module",
   "main": "dist/index.js",
