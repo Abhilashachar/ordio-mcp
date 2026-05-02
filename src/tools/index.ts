@@ -24,3 +24,4 @@ export { registerEquipmentTools } from './equipment.js';
 export { registerAITools } from './ai.js';
 export { registerSearchTools } from './search.js';
 export { registerInsightTools } from './insights.js';
+export { registerOracleTools } from './oracle.js';

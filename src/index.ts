@@ -47,6 +47,7 @@ import {
   registerAITools,
   registerSearchTools,
   registerInsightTools,
+  registerOracleTools,
 } from './tools/index.js';
 import { registerOrganizationResources } from './resources/index.js';
 import { registerWorkflowPrompts } from './prompts/index.js';
@@ -87,6 +88,7 @@ async function main() {
   registerAITools(server, client);
   registerSearchTools(server, client);
   registerInsightTools(server, client);
+  registerOracleTools(server, client);
 
   // Resources & Prompts
   registerOrganizationResources(server, client);
