@@ -39,19 +39,32 @@ export async function registerCatalogTools(server: McpServer, client: OrdioClien
     return;
   }
 
-  for (const tool of (manifest.tools ?? []) as CatalogTool[]) {
-    const shape = {
-      ...parametersToZodShape(tool.parameters),
-      confirmToken: z
-        .string()
-        .optional()
-        .describe('Only when re-submitting a confirmation-required action'),
-    };
+  // A malformed 200 body (non-object, or `tools` not an array) degrades to zero
+  // tools instead of throwing on iteration.
+  const tools = (Array.isArray(manifest?.tools) ? manifest.tools : []) as CatalogTool[];
 
-    server.tool(tool.name, tool.description ?? '', shape, async ({ confirmToken, ...args }) =>
-      withErrorHandling(async () =>
-        formatExecResult(await client.execTool(tool.name, args, confirmToken)),
-      ),
-    );
+  for (const tool of tools) {
+    // Guard each registration independently: one bad entry (e.g. a duplicate
+    // tool name that makes `server.tool` throw) is skipped with a warning, the
+    // rest still register. A single malformed tool must not drop the catalog.
+    try {
+      const shape = {
+        ...parametersToZodShape(tool.parameters),
+        confirmToken: z
+          .string()
+          .optional()
+          .describe('Only when re-submitting a confirmation-required action'),
+      };
+
+      server.tool(tool.name, tool.description ?? '', shape, async ({ confirmToken, ...args }) =>
+        withErrorHandling(async () =>
+          formatExecResult(await client.execTool(tool.name, args, confirmToken)),
+        ),
+      );
+    } catch (err) {
+      process.stderr.write(
+        `[catalog] skipped tool ${tool?.name ?? '<unknown>'}: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
+    }
   }
 }

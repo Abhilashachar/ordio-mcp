@@ -110,4 +110,58 @@ describe('registerCatalogTools', () => {
     expect(calls).toHaveLength(0);
     expect(client.getToolManifest).toHaveBeenCalledTimes(1);
   });
+
+  it('resolves with zero tools when a 200 body has no tools key', async () => {
+    const { server, calls } = makeStubServer();
+    const client = {
+      getToolManifest: vi.fn().mockResolvedValue({}),
+      execTool: vi.fn(),
+    };
+
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registerCatalogTools(server as any, client as any),
+    ).resolves.toBeUndefined();
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it('resolves with zero tools when tools is not an array', async () => {
+    const { server, calls } = makeStubServer();
+    const client = {
+      getToolManifest: vi.fn().mockResolvedValue({ tools: 'not-an-array' }),
+      execTool: vi.fn(),
+    };
+
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registerCatalogTools(server as any, client as any),
+    ).resolves.toBeUndefined();
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it('skips a tool whose registration throws and still registers the rest', async () => {
+    const calls: Captured[] = [];
+    const server = {
+      tool(
+        name: string,
+        description: string,
+        shape: Captured['shape'],
+        handler: Captured['handler'],
+      ) {
+        if (name === 'list_shifts') throw new Error('duplicate tool name');
+        calls.push({ name, description, shape, handler });
+      },
+    };
+    const client = makeStubClient();
+
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registerCatalogTools(server as any, client as any),
+    ).resolves.toBeUndefined();
+
+    // The first tool blew up; the second must still be registered.
+    expect(calls.map((c) => c.name)).toEqual(['create_shift']);
+  });
 });
