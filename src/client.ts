@@ -30,6 +30,40 @@ export class OrdioClient {
     return this.url(`/orgs/${this.orgId}/${resource}`);
   }
 
+  /** URL for the assistant tool catalog (manifest) or a single tool's exec endpoint. */
+  private assistantUrl(name?: string): string {
+    return this.orgUrl(name ? `assistant/tools/${name}` : 'assistant/tools');
+  }
+
+  /**
+   * Fetch the raw, permission-filtered assistant tool manifest.
+   * Returns the whole body `{ tools, version }` verbatim — NOT unwrapped via parseResponse.
+   */
+  async getToolManifest(): Promise<{ tools: unknown[]; version?: string }> {
+    const res = await fetch(this.assistantUrl(), { method: 'GET', headers: this.headers });
+    if (!res.ok) {
+      throw buildApiError(res.status, await res.json().catch(() => null));
+    }
+    return res.json();
+  }
+
+  /**
+   * Execute a single catalog tool through the API gateway.
+   * Returns the raw `ToolExecutionResult` body verbatim — NOT unwrapped via parseResponse.
+   */
+  async execTool(name: string, args: unknown, confirmToken?: string): Promise<{ kind: string; [key: string]: unknown }> {
+    const body = { args, ...(confirmToken ? { confirmToken } : {}) };
+    const res = await fetch(this.assistantUrl(name), {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw buildApiError(res.status, await res.json().catch(() => null));
+    }
+    return res.json();
+  }
+
   async get<T>(path: string, query?: Record<string, string | number | boolean | undefined>): Promise<T> {
     let url = path.startsWith('/') ? this.url(path) : this.orgUrl(path);
     if (query) {
