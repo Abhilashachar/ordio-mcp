@@ -15,6 +15,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io) is an open standar
 - 6 prompt workflows (inventory audit, purchase-order workflow, shift scheduling, end-of-day closing, recipe costing, new menu-item setup)
 - stdio and SSE transports
 - Strict per-request org scoping and Bearer-token auth against the Ordio REST API
+- Two tool sources, selectable at startup: the hand-written tool modules (default) or the **unified assistant catalog proxy** (`ORDIO_CATALOG_PROXY=1`), which routes every call through the Ordio API's chat/voice gateway so the MCP and in-app assistant surfaces can never drift — see [Tool source](#tool-source-hand-written-vs-catalog-proxy-ordio_catalog_proxy)
 
 ## Available tools
 
@@ -123,10 +124,12 @@ Treat your API key like a password — it grants full access to the configured o
 
 The server can expose its tools from one of two sources, selected at startup by the `ORDIO_CATALOG_PROXY` flag:
 
-- **Default (flag off):** the 27 hand-written tool modules under [`src/tools/`](./src/tools) are registered (the ~145 tools listed above). This is the current, fully-supported behavior — leaving the flag unset changes nothing.
-- **Catalog proxy (`ORDIO_CATALOG_PROXY=1`):** the server fetches the ordio-api *assistant tool catalog* at startup (`GET /api/v1/orgs/:orgId/assistant/tools`) and registers one MCP tool per catalog entry, executing each through the API gateway. This makes the MCP surface and the in-app chat/voice surface the same catalog, so they cannot drift. **Requires the API endpoint (PR #309) to be deployed;** if the manifest fetch fails, the proxy degrades gracefully to zero tools rather than crashing.
+- **Default (flag off):** the 27 hand-written tool modules under [`src/tools/`](./src/tools) are registered (the ~145 tools listed above). This remains the default during the transition — leaving the flag unset changes nothing.
+- **Catalog proxy (`ORDIO_CATALOG_PROXY=1`):** the server fetches the ordio-api *assistant tool catalog* at startup (`GET /api/v1/orgs/:orgId/assistant/tools`) and registers one MCP tool per catalog entry, executing each through the API's chat/voice gateway (permission scoping, confirmation gating, write rate-limits, and idempotency all apply). This makes the MCP surface and the in-app chat/voice surface the **same catalog**, so they cannot drift, and a new capability added to the catalog appears here automatically. If the manifest fetch fails — or a single entry is malformed — the proxy degrades gracefully (that tool, or all tools, are skipped) rather than crashing the server.
 
-The two sources are mutually exclusive. The hand-written tool files are **retained for now** — the assistant catalog does not yet include every hand-written tool (e.g. oracle, reports, equipment, temperature-logs, departments, menu-item writes), so a hard cutover would silently drop those. A later PR will flip the default and delete the hand-written files once the API catalog is a superset.
+**Why it isn't the default yet.** The two sources are mutually exclusive, and the hand-written files are retained for one more step. The assistant catalog is now a **superset of this server's non-destructive tools** — the domains that used to be MCP-only (oracle, reports, equipment, temperature logs, station/"department" writes, menu-item writes, alert lifecycle, time-clock, kitchen writes, …) are all in the catalog, so flipping the flag no longer drops them. The one deliberate difference is **destructive operations**: the assistant catalog excludes hard `delete_*` tools by policy (the assistant never destroys data — use reversible archive/restore instead), so those live only in the hand-written set. Once the proxy is validated against the live manifest in staging, a follow-up flips the default on and removes the hand-written modules.
+
+**Prerequisites:** the API's `/assistant/tools` endpoint must be deployed (it is, on `ordio-api` `main`), and `ORDIO_API_KEY` must resolve to a user whose permissions cover the tools you want exposed — the manifest is permission-filtered per caller, and every write still passes the gateway's confirmation/rate-limit checks. (A durable service-user token minted via Clerk, rather than a hand-pasted key, is a planned follow-up.)
 
 ## Transports
 
@@ -160,7 +163,7 @@ src/
 
 ## Status
 
-Active. Version `0.2.0`. APIs and tool names may still evolve before a `1.0` release. Issues and contributions are welcome.
+Active. Version `0.2.0`. APIs and tool names may still evolve before a `1.0` release. The server is mid-migration from hand-written tool modules to the unified [catalog proxy](#tool-source-hand-written-vs-catalog-proxy-ordio_catalog_proxy); the default remains the hand-written set until the proxy is validated in staging. Issues and contributions are welcome.
 
 ## License
 
