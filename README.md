@@ -115,8 +115,18 @@ Every request to the Ordio REST API is sent with `Authorization: Bearer ${ORDIO_
 | `ORDIO_API_BASE_URL` | no | `https://api.getordio.com` | Override for staging or self-hosted deployments |
 | `ORDIO_MCP_TRANSPORT` | no | `stdio` | `stdio` or `sse` |
 | `ORDIO_MCP_PORT` | no | `3100` | Port for the SSE HTTP server |
+| `ORDIO_CATALOG_PROXY` | no | off | Set to `1`/`true` to register tools from the API assistant catalog (proxy) instead of the hand-written tool files |
 
 Treat your API key like a password — it grants full access to the configured organization.
+
+## Tool source: hand-written vs. catalog proxy (`ORDIO_CATALOG_PROXY`)
+
+The server can expose its tools from one of two sources, selected at startup by the `ORDIO_CATALOG_PROXY` flag:
+
+- **Default (flag off):** the 27 hand-written tool modules under [`src/tools/`](./src/tools) are registered (the ~145 tools listed above). This is the current, fully-supported behavior — leaving the flag unset changes nothing.
+- **Catalog proxy (`ORDIO_CATALOG_PROXY=1`):** the server fetches the ordio-api *assistant tool catalog* at startup (`GET /api/v1/orgs/:orgId/assistant/tools`) and registers one MCP tool per catalog entry, executing each through the API gateway. This makes the MCP surface and the in-app chat/voice surface the same catalog, so they cannot drift. **Requires the API endpoint (PR #309) to be deployed;** if the manifest fetch fails, the proxy degrades gracefully to zero tools rather than crashing.
+
+The two sources are mutually exclusive. The hand-written tool files are **retained for now** — the assistant catalog does not yet include every hand-written tool (e.g. oracle, reports, equipment, temperature-logs, departments, menu-item writes), so a hard cutover would silently drop those. A later PR will flip the default and delete the hand-written files once the API catalog is a superset.
 
 ## Transports
 

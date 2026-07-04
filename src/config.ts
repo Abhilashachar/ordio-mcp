@@ -14,6 +14,8 @@ export interface Config {
   transport: 'stdio' | 'sse';
   /** Port for the SSE HTTP server (only used when transport is 'sse') */
   port: number;
+  /** When true, register tools from the API assistant catalog (proxy) instead of the hand-written tool files. Default false. */
+  catalogProxy?: boolean;
 }
 
 function requireEnv(name: string): string {
@@ -31,5 +33,6 @@ export function loadConfig(): Config {
     orgId: requireEnv('ORDIO_ORG_ID'),
     transport: (process.env.ORDIO_MCP_TRANSPORT ?? 'stdio') as 'stdio' | 'sse',
     port: Number(process.env.ORDIO_MCP_PORT) || 3100,
+    catalogProxy: process.env.ORDIO_CATALOG_PROXY === '1' || process.env.ORDIO_CATALOG_PROXY === 'true',
   };
 }

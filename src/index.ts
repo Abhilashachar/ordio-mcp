@@ -48,6 +48,7 @@ import {
   registerSearchTools,
   registerInsightTools,
 } from './tools/index.js';
+import { registerCatalogTools } from './catalog/register.js';
 import { registerOrganizationResources } from './resources/index.js';
 import { registerWorkflowPrompts } from './prompts/index.js';
 
@@ -60,33 +61,40 @@ async function main() {
     version: '0.2.0',
   });
 
-  // Register all tool groups
-  registerInventoryTools(server, client);
-  registerRecipeTools(server, client);
-  registerVendorTools(server, client);
-  registerCategoryTools(server, client);
-  registerOrderTools(server, client);
-  registerInvoiceTools(server, client);
-  registerTaskTools(server, client);
-  registerTeamTools(server, client);
-  registerShiftTools(server, client);
-  registerAlertTools(server, client);
-  registerMenuItemTools(server, client);
-  registerActivityTools(server, client);
-  registerSettingsTools(server, client);
-  registerSalesTools(server, client);
-  registerCountSessionTools(server, client);
-  registerKitchenBoardTools(server, client);
-  registerRecipeBatchTools(server, client);
-  registerShiftRequestTools(server, client);
-  registerStorageLocationTools(server, client);
-  registerUnitTools(server, client);
-  registerReportTools(server, client);
-  registerTemperatureLogTools(server, client);
-  registerEquipmentTools(server, client);
-  registerAITools(server, client);
-  registerSearchTools(server, client);
-  registerInsightTools(server, client);
+  // Register tools. Default: the hand-written tool catalog. When the
+  // ORDIO_CATALOG_PROXY flag is set, register the API assistant catalog
+  // (proxy) instead — the two are mutually exclusive.
+  if (config.catalogProxy) {
+    await registerCatalogTools(server, client);
+  } else {
+    // Hand-written tool catalog (legacy; retired once the API catalog is a superset)
+    registerInventoryTools(server, client);
+    registerRecipeTools(server, client);
+    registerVendorTools(server, client);
+    registerCategoryTools(server, client);
+    registerOrderTools(server, client);
+    registerInvoiceTools(server, client);
+    registerTaskTools(server, client);
+    registerTeamTools(server, client);
+    registerShiftTools(server, client);
+    registerAlertTools(server, client);
+    registerMenuItemTools(server, client);
+    registerActivityTools(server, client);
+    registerSettingsTools(server, client);
+    registerSalesTools(server, client);
+    registerCountSessionTools(server, client);
+    registerKitchenBoardTools(server, client);
+    registerRecipeBatchTools(server, client);
+    registerShiftRequestTools(server, client);
+    registerStorageLocationTools(server, client);
+    registerUnitTools(server, client);
+    registerReportTools(server, client);
+    registerTemperatureLogTools(server, client);
+    registerEquipmentTools(server, client);
+    registerAITools(server, client);
+    registerSearchTools(server, client);
+    registerInsightTools(server, client);
+  }
 
   // Resources & Prompts
   registerOrganizationResources(server, client);
